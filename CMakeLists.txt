@@ -13,12 +13,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/target.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
 
 # Project definition
-project(Blinky)
+project(VarioPrototype)
 
 # Enable CMake support for ASM and C/CPP languages
 enable_language(C ASM)
 
-set(PROJECT_NAME Blinky)
+set(PROJECT_NAME VarioPrototype)
 
 # Create an executable object type
 add_executable(${PROJECT_NAME})

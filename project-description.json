@@ -1,10 +1,10 @@
 {
-  "name": "Blinky",
+  "name": "VarioPrototype",
   "configurations": [
     {
       "name": "Debug",
       "type": "Executable",
-      "output_filename": "Blinky",
+      "output_filename": "VarioPrototype",
       "mcu": "STM32F407VGT6",
       "board": "STM32F407G-DISC1",
       "toolchain_type": "GCC",
@@ -98,7 +98,7 @@
           "type": "c_linker",
           "flags": [
             "-Tstm32f407xg_flash.ld",
-            "-Wl,-Map=Blinky.map",
+            "-Wl,-Map=VarioPrototype.map",
             "-u",
             "_printf_float",
             "--specs=nosys.specs",
@@ -117,7 +117,7 @@
     {
       "name": "Release",
       "type": "Executable",
-      "output_filename": "Blinky",
+      "output_filename": "VarioPrototype",
       "mcu": "STM32F407VGT6",
       "board": "STM32F407G-DISC1",
       "toolchain_type": "GCC",
@@ -202,7 +202,7 @@
           "type": "c_linker",
           "flags": [
             "-Tstm32f407xg_flash.ld",
-            "-Wl,-Map=Blinky.map",
+            "-Wl,-Map=VarioPrototype.map",
             "-u",
             "_printf_float",
             "--specs=nosys.specs",
