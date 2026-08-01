@@ -58,6 +58,7 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -Wpedantic
         -Wno-unused-parameter
         -Os
+        -specs=nosys.specs
       >
       $<$<COMPILE_LANGUAGE:CXX>: 
         -std=gnu11

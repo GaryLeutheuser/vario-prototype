@@ -35,7 +35,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 # Add include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
-  # User defined include directories
+  third_party
 )
 
 # Compiler options

@@ -2,3 +2,5 @@ build
 mx.scratch
 !.settings
 tools/check_report.txt
+tools/misra-rules.txt
+*.dump

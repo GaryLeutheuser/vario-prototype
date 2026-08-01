@@ -16,53 +16,27 @@
  *
  ******************************************************************************
  */
+#include "hal/gpio.h"
+#include "hal/systick.h"
 #include "stm32f407xx.h"
 #include <stdint.h>
 
-static volatile uint32_t tick = 0u;
-
-void SysTick_Handler(void) { tick++; } // 1 ms tick
-
-#define FLASH_PERIOD_MS 1000
-
-void initLed(void) {
-  // I/O PD13 - orange LED on discovery board
-
-  // Enable GPIOD clock
-  RCC->AHB1ENR |= RCC_AHB1ENR_GPIODEN;
-
-  // PD13 -- output
-  GPIOD->MODER |= (1u << GPIO_MODER_MODER13_Pos) & GPIO_MODER_MODER13_Msk;
-}
-
-void initSysTick(void) {
-  // 16000 counts @ 16 MHz clock == 1 ms cycle
-  SysTick->LOAD = 15999u;
-
-  // Internal clock, enable tick interrupt
-  SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_TICKINT_Msk;
-
-  // Set unknown initial count to zero
-  SysTick->VAL = 0u;
-
-  // Enable the counter
-  SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
-}
-
 int main(void) {
   initLed();
-  initSysTick();
+  systick_init();
 
   uint8_t led_on = 0;
   uint32_t start_tick = 0u;
+
   for (;;) {
-    if (tick - start_tick >= FLASH_PERIOD_MS) {
+    static const uint32_t FLASH_PERIOD_MS = 1000u;
+    if ((systick_get_ms() - start_tick) >= FLASH_PERIOD_MS) {
       start_tick += FLASH_PERIOD_MS;
-      if (led_on == 0) {
-        GPIOD->BSRR = GPIO_BSRR_BS13_Msk;
+      if (led_on == 0u) {
+        orangeLedOn();
         led_on = 1;
       } else {
-        GPIOD->BSRR = GPIO_BSRR_BR13_Msk;
+        orangeLedOff();
         led_on = 0;
       }
     }

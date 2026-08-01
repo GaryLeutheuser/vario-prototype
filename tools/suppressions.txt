@@ -1,1 +1,5 @@
-*:Inc/*
+*:third_party/*
+*:tools/*
+
+# D-001: Rule 11.4 - CMSIS Memory-mapped register access
+misra-c2012-11.4:Src/hal/*
