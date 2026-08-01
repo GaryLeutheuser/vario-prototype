@@ -40,6 +40,8 @@ int main(void) {
         led_on = 0;
       }
     }
+
+    // cppcheck-suppress misra-c2012-17.3 ; macro, see tool-defects.md TD-001
     __WFI();
   }
 }

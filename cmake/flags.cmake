@@ -13,7 +13,9 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -Wall
         -Wextra
         -Wpedantic
+        -Werror
         -Wno-unused-parameter
+        -Wimplicit-function-declaration
         -O0
         -g3
         -ggdb
@@ -24,8 +26,10 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -fstack-usage
         -Wall
         -Wextra
+        -Werror
         -Wpedantic
         -Wno-unused-parameter
+        -Wimplicit-function-declaration
         -O0
         -g3
         -ggdb
@@ -37,7 +41,9 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -Wall
         -Wextra
         -Wpedantic
+        -Werror
         -Wno-unused-parameter
+        -Wimplicit-function-declaration
         -O0
         -g3
         -ggdb
@@ -55,16 +61,22 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -fstack-usage
         -Wall
         -Wextra
+        -Werror
         -Wpedantic
         -Wno-unused-parameter
-        -Os
+        -Wimplicit-function-declaration
+        -O0
+        -g3
+        -ggdb
         -specs=nosys.specs
       >
       $<$<COMPILE_LANGUAGE:CXX>: 
         -std=gnu11
         -fstack-usage
         -Wall
+        -Werror
         -Wextra
+        -Wimplicit-function-declaration
         -Wpedantic
         -Wno-unused-parameter
         -Os
@@ -75,8 +87,10 @@ target_compile_options(${PROJECT_NAME} PUBLIC
         -fstack-usage
         -Wall
         -Wextra
+        -Werror
         -Wpedantic
         -Wno-unused-parameter
+        -Wimplicit-function-declaration
         -Os
         -x
         assembler-with-cpp
