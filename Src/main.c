@@ -28,6 +28,50 @@ int main(void) {
   uint8_t led_on = 0;
   uint32_t start_tick = 0u;
 
+  // Do a PROM read from the ms5611:
+
+  // Hardware configuration
+  // PB9 - IC21 SDA
+  // PB8 - IC21 SCL
+  // PS pulled high for I2C
+  // CSB pulled LOW, so final addr bit is HIGH
+
+  // Set up I2C pins
+  // Open-drain + pull-up (I2C requirements) + select AF4 (see table 9 of
+  // the datasheet doc DS8626)
+
+  // Enable GPIOB
+  // Enable GPIOD clock
+  RCC->AHB1ENR |= RCC_AHB1ENR_GPIOBEN;
+
+  // Set AF on the pins
+  GPIOB->MODER |=
+      ((UINT32_C(2) << GPIO_MODER_MODER8_Pos) & GPIO_MODER_MODER8_Msk) |
+      ((UINT32_C(2) << GPIO_MODER_MODER9_Pos) & GPIO_MODER_MODER9_Msk);
+
+  // Set open-drain on the pins
+  GPIOB->OTYPER |= GPIO_OTYPER_OT8_Msk | GPIO_OTYPER_OT9_Msk;
+
+  // Set pull-up resistors on the pins
+  GPIOB->PUPDR |=
+      ((UINT32_C(1) << GPIO_PUPDR_PUPD8_Pos) & GPIO_PUPDR_PUPD8_Msk) |
+      ((UINT32_C(1) << GPIO_PUPDR_PUPD9_Pos) & GPIO_PUPDR_PUPD9_Msk);
+
+  // Pick AF4 on each pin
+  GPIOB->AFR[1] |=
+      ((UINT32_C(4) << GPIO_AFRH_AFSEL8_Pos) & GPIO_AFRH_AFSEL8_Msk) |
+      ((UINT32_C(4) << GPIO_AFRH_AFSEL9_Pos) & GPIO_AFRH_AFSEL9_Msk);
+
+  // Turn on I2C1
+
+  // Configure I2C1
+
+  // Send reset sequence to MS5611 - ms5611 page 12
+
+  // Send PROM read mode command - ms5611 page 12
+
+  // Retrieve desired PROM data - ms5611 page 12
+
   for (;;) {
     static const uint32_t FLASH_PERIOD_MS = 1000u;
     if ((systick_get_ms() - start_tick) >= FLASH_PERIOD_MS) {
