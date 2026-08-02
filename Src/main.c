@@ -21,13 +21,152 @@
 #include "stm32f407xx.h"
 #include <stdint.h>
 
-int main(void) {
-  initLed();
-  systick_init();
+// Taken from AN520: Application note for ms5611, which details
+// how the MS5611 PROM CRC is computed.
+static uint8_t crc4(uint32_t n_prom[]) {
+  uint32_t cnt;      // simple counter
+  uint32_t n_rem;    // crc remainder
+  uint32_t crc_read; // original value of the crc
+  uint8_t n_bit;
+  n_rem = UINT8_C(0x00);
 
-  uint8_t led_on = 0;
-  uint32_t start_tick = 0u;
+  // Save crc_read
+  crc_read = n_prom[7];
 
+  // CRC byte is replaced by 0
+  n_prom[7] = (UINT16_C(0xFF00) & (n_prom[7]));
+
+  // For each byte
+  for (cnt = 0; cnt < 16; cnt++) {
+    if (cnt % 2 == 1) {
+      n_rem ^= (unsigned short)((n_prom[cnt >> 1]) & UINT16_C(0x00FF));
+    } else {
+      n_rem ^= (unsigned short)(n_prom[cnt >> 1] >> 8);
+    }
+
+    for (n_bit = 8; n_bit > 0; n_bit--) {
+      if (n_rem & (UINT32_C(0x8000))) {
+        n_rem = (n_rem << 1) ^ UINT32_C(0x3000);
+      } else {
+        n_rem = (n_rem << 1);
+      }
+    }
+  }
+
+  // Final 4-bit remainder is CRC code
+  n_rem = (UINT32_C(0x000F) & (n_rem >> 12));
+
+  // Restore crc_read
+  n_prom[7] = crc_read;
+  return (n_rem ^ UINT32_C(0x0));
+}
+
+static void sendByte(uint8_t data) {
+  // Send start
+  I2C1->CR1 |= I2C_CR1_START;
+  // Poll start
+  while ((I2C1->SR1 & I2C_SR1_SB_Msk) == UINT32_C(0)) {
+    // wait for SB 1
+  }
+  // Send addr - 0b1110111+0 (write)
+  I2C1->DR = 0xEE;
+  // Poll addr
+  while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
+    // wait for ADDR 1
+  }
+  // Read SR2 to finish clear
+  (void)I2C1->SR2;
+
+  // Send data
+  while ((I2C1->SR1 & I2C_SR1_TXE_Msk) == UINT32_C(0)) {
+    // wait for TXE
+  }
+  I2C1->DR = data;
+
+  // Send stop
+  while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
+    // wait for BTF
+  }
+  while ((I2C1->SR1 & I2C_SR1_TXE_Msk) == UINT32_C(0)) {
+    // wait for TXE
+  }
+  I2C1->CR1 |= I2C_CR1_STOP;
+}
+
+static uint16_t readPROMValue(const uint8_t address) {
+  // Retrieve desired PROM data - ms5611 page 12
+
+  // Set PROM Read Mode for given address
+  // Command is 0xA<addr>
+  // TODO: Can't properly time ACK/POS manipulations relative to the command
+  // message because of the sendByte call. Need to make like a write_read
+  // sequenced function where we can unset ack/set pos at the right time during
+  // the first exchange.
+  uint8_t command = 0xA0 | ((address << 1u) & 0x1E);
+  sendByte(command);
+
+  // Unset ACK + set POS
+  I2C1->CR1 &= ~I2C_CR1_ACK;
+  I2C1->CR1 |= I2C_CR1_POS;
+
+  // Send start
+  I2C1->CR1 |= I2C_CR1_START;
+  // Poll start
+  while ((I2C1->SR1 & I2C_SR1_SB_Msk) == UINT32_C(0)) {
+    // wait for SB 1
+  }
+
+  // Send addr - 0b1110111+1 (read)
+  I2C1->DR = 0xEF;
+  // Poll addr
+  while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
+    // wait for ADDR 1
+  }
+  while ((I2C1->SR2 & I2C_SR2_BUSY_Msk) == UINT32_C(0)) {
+    // (Read SR2 after SR1 to clear ADDR event)
+  }
+
+  // Note that 2-byte reception is unique; see page 845 RM0090 Rev 22
+  while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
+    // wait for BTF
+  }
+  // Step STOP
+  I2C1->CR1 |= I2C_CR1_STOP;
+
+  // Clear POS to avoid contaminating future I2C usage
+  I2C1->CR1 &= ~I2C_CR1_POS;
+
+  // Read data (DR + shift register behind it are ready)
+  uint16_t value = (uint16_t)(I2C1->DR << 8);
+  value |= (uint16_t)I2C1->DR;
+  return value;
+
+  // // Receive Memory bits 15-8
+  // while ((I2C1->SR1 & I2C_SR1_RXNE_Msk) == UINT32_C(0)) {
+  //   // Wait for data (RXNE)
+  // }
+  // // Read it (high byte comes first)
+  // uint16_t value = I2C1->DR << 8;
+  // // No ack + set STOP (second last byte received)
+  // I2C1->CR1 &= ~I2C_CR1_ACK;
+  // I2C1->CR1 |= I2C_CR1_STOP;
+
+  // // Receive Memory bits 7-0
+  // while ((I2C1->SR1 & I2C_SR1_RXNE_Msk) == UINT32_C(0)) {
+  //   // Wait for data (RXNE)
+  // }
+  // // Read it (low byte)
+  // value |= I2C1->DR;
+}
+
+// Reads PROM values into provided struct
+static void readPROM(uint32_t prom[]) {
+  for (uint8_t addr = 0; addr < 8; addr++) {
+    prom[addr] = readPROMValue(addr);
+  }
+}
+
+static void ms5611_init(void) {
   // Do a PROM read from the ms5611:
 
   // Hardware configuration
@@ -72,47 +211,40 @@ int main(void) {
   I2C1->CCR |= (UINT32_C(80) << I2C_CCR_CCR_Pos) & I2C_CCR_CCR_Msk;
   // Set TRISE
   I2C1->TRISE = UINT32_C(17); // 1000 ns / 63 ns == 15.87 == 16 + 1 = 17
+  // Set controller mode
 
   // Enable I2C1
   I2C1->CR1 |= I2C_CR1_PE;
 
   // Send reset sequence - MS5611 page 12
-
-  // Send start
-  I2C1->CR1 |= I2C_CR1_START;
-  // Poll start
-  while ((I2C1->SR1 & I2C_SR1_SB_Msk) == UINT32_C(0)) {
-    // wait
-  }
-  // Send addr - 0b1110111+0 (write)
-  I2C1->DR = 0xEE;
-  // Poll addr
-  while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
-    // wait
-  }
-  while ((I2C1->SR2 & I2C_SR2_BUSY_Msk) == UINT32_C(0)) {
-    // wait
-  }
-
-  // Send reset - 0b00011110
-  while ((I2C1->SR1 & I2C_SR1_TXE_Msk) == UINT32_C(0)) {
-    // wait for BTF first
-  }
-  I2C1->DR = 0x1E;
-
-  // Send stop
-  while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
-    // wait for BTF first
-  }
-  I2C1->CR1 |= I2C_CR1_STOP;
+  sendByte(0x1E);
 
   // Wait for at least a tick to allow the MS5611 to reset.
   uint32_t reset_wait_start = systick_get_ms();
   while (systick_get_ms() - reset_wait_start < 10) {
     // wait
   }
+}
 
-  // Retrieve desired PROM data - ms5611 page 12
+int main(void) {
+  initLed();
+  systick_init();
+
+  ms5611_init();
+
+  uint32_t nprom[] = {0x3132, 0x3334, 0x3536, 0x3738,
+                      0x3940, 0x4142, 0x4344, 0x4500};
+  crc4(nprom);
+
+  for (uint8_t i = 0; i < 8; i++) {
+    nprom[i] = 0x0000;
+  }
+
+  readPROM(nprom);
+  crc4(nprom);
+
+  uint8_t led_on = 0;
+  uint32_t start_tick = 0u;
 
   for (;;) {
     static const uint32_t FLASH_PERIOD_MS = 1000u;
