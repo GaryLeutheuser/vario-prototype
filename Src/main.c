@@ -34,7 +34,7 @@ int main(void) {
   // PB9 - IC21 SDA
   // PB8 - IC21 SCL
   // PS pulled high for I2C
-  // CSB pulled LOW, so final addr bit is HIGH
+  // CSB pulled LOW, so final addr bit is HIGH: 0x111011C1
 
   // Set up I2C pins
   // Open-drain + pull-up (I2C requirements) + select AF4 (see table 9 of
@@ -62,13 +62,55 @@ int main(void) {
       ((UINT32_C(4) << GPIO_AFRH_AFSEL8_Pos) & GPIO_AFRH_AFSEL8_Msk) |
       ((UINT32_C(4) << GPIO_AFRH_AFSEL9_Pos) & GPIO_AFRH_AFSEL9_Msk);
 
-  // Turn on I2C1
+  // Turn on I2C1 module clock
+  RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
 
   // Configure I2C1
+  // Set FREQ to 16 MHz
+  I2C1->CR2 |= (UINT32_C(16) << I2C_CR2_FREQ_Pos) & I2C_CR2_FREQ_Msk;
+  // Set CCR
+  I2C1->CCR |= (UINT32_C(80) << I2C_CCR_CCR_Pos) & I2C_CCR_CCR_Msk;
+  // Set TRISE
+  I2C1->TRISE = UINT32_C(17); // 1000 ns / 63 ns == 15.87 == 16 + 1 = 17
 
-  // Send reset sequence to MS5611 - ms5611 page 12
+  // Enable I2C1
+  I2C1->CR1 |= I2C_CR1_PE;
 
-  // Send PROM read mode command - ms5611 page 12
+  // Send reset sequence - MS5611 page 12
+
+  // Send start
+  I2C1->CR1 |= I2C_CR1_START;
+  // Poll start
+  while ((I2C1->SR1 & I2C_SR1_SB_Msk) == UINT32_C(0)) {
+    // wait
+  }
+  // Send addr - 0b1110111+0 (write)
+  I2C1->DR = 0xEE;
+  // Poll addr
+  while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
+    // wait
+  }
+  while ((I2C1->SR2 & I2C_SR2_BUSY_Msk) == UINT32_C(0)) {
+    // wait
+  }
+
+  // Send reset - 0b00011110
+  while ((I2C1->SR1 & I2C_SR1_TXE_Msk) == UINT32_C(0)) {
+    // wait for BTF first
+  }
+  I2C1->DR = 0x1E;
+
+  // Send stop
+  while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
+    // wait for BTF first
+  }
+  I2C1->CR1 |= I2C_CR1_STOP;
+
+  // Wait for at least a tick to allow the MS5611 to reset.
+  uint32_t reset_wait_start = systick_get_ms();
+  while (systick_get_ms() - reset_wait_start < 10) {
+    // wait
+  }
 
   // Retrieve desired PROM data - ms5611 page 12
 
