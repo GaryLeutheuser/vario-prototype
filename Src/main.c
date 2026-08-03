@@ -97,17 +97,9 @@ static uint16_t readPROMValue(const uint8_t address) {
   // Retrieve desired PROM data - ms5611 page 12
 
   // Set PROM Read Mode for given address
-  // Command is 0xA<addr>
-  // TODO: Can't properly time ACK/POS manipulations relative to the command
-  // message because of the sendByte call. Need to make like a write_read
-  // sequenced function where we can unset ack/set pos at the right time during
-  // the first exchange.
+  // Command is 0xA<3-bit addr>0
   uint8_t command = 0xA0 | ((address << 1u) & 0x1E);
   sendByte(command);
-
-  // Unset ACK + set POS
-  I2C1->CR1 &= ~I2C_CR1_ACK;
-  I2C1->CR1 |= I2C_CR1_POS;
 
   // Send start
   I2C1->CR1 |= I2C_CR1_START;
@@ -122,9 +114,10 @@ static uint16_t readPROMValue(const uint8_t address) {
   while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
     // wait for ADDR 1
   }
-  while ((I2C1->SR2 & I2C_SR2_BUSY_Msk) == UINT32_C(0)) {
-    // (Read SR2 after SR1 to clear ADDR event)
-  }
+  // Unset ACK + set POS
+  I2C1->CR1 &= ~I2C_CR1_ACK;
+  I2C1->CR1 |= I2C_CR1_POS;
+  (void)I2C1->SR2;
 
   // Note that 2-byte reception is unique; see page 845 RM0090 Rev 22
   while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
@@ -140,23 +133,6 @@ static uint16_t readPROMValue(const uint8_t address) {
   uint16_t value = (uint16_t)(I2C1->DR << 8);
   value |= (uint16_t)I2C1->DR;
   return value;
-
-  // // Receive Memory bits 15-8
-  // while ((I2C1->SR1 & I2C_SR1_RXNE_Msk) == UINT32_C(0)) {
-  //   // Wait for data (RXNE)
-  // }
-  // // Read it (high byte comes first)
-  // uint16_t value = I2C1->DR << 8;
-  // // No ack + set STOP (second last byte received)
-  // I2C1->CR1 &= ~I2C_CR1_ACK;
-  // I2C1->CR1 |= I2C_CR1_STOP;
-
-  // // Receive Memory bits 7-0
-  // while ((I2C1->SR1 & I2C_SR1_RXNE_Msk) == UINT32_C(0)) {
-  //   // Wait for data (RXNE)
-  // }
-  // // Read it (low byte)
-  // value |= I2C1->DR;
 }
 
 // Reads PROM values into provided struct
