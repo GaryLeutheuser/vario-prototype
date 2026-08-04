@@ -3,6 +3,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/main.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/startup_stm32f407xx.S"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/gpio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/i2c.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/systick.c"
 )
 

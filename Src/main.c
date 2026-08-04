@@ -17,9 +17,12 @@
  ******************************************************************************
  */
 #include "hal/gpio.h"
+#include "hal/i2c.h"
 #include "hal/systick.h"
 #include "stm32f407xx.h"
 #include <stdint.h>
+
+const uint8_t MS5611_ADDR = UINT16_C(0xEE);
 
 // Taken from AN520: Application note for ms5611, which details
 // how the MS5611 PROM CRC is computed.
@@ -61,45 +64,13 @@ static uint8_t crc4(uint32_t n_prom[]) {
   return (n_rem ^ UINT32_C(0x0));
 }
 
-static void sendByte(uint8_t data) {
-  // Send start
-  I2C1->CR1 |= I2C_CR1_START;
-  // Poll start
-  while ((I2C1->SR1 & I2C_SR1_SB_Msk) == UINT32_C(0)) {
-    // wait for SB 1
-  }
-  // Send addr - 0b1110111+0 (write)
-  I2C1->DR = 0xEE;
-  // Poll addr
-  while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
-    // wait for ADDR 1
-  }
-  // Read SR2 to finish clear
-  (void)I2C1->SR2;
-
-  // Send data
-  while ((I2C1->SR1 & I2C_SR1_TXE_Msk) == UINT32_C(0)) {
-    // wait for TXE
-  }
-  I2C1->DR = data;
-
-  // Send stop
-  while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
-    // wait for BTF
-  }
-  while ((I2C1->SR1 & I2C_SR1_TXE_Msk) == UINT32_C(0)) {
-    // wait for TXE
-  }
-  I2C1->CR1 |= I2C_CR1_STOP;
-}
-
 static uint16_t readPROMValue(const uint8_t address) {
   // Retrieve desired PROM data - ms5611 page 12
 
   // Set PROM Read Mode for given address
   // Command is 0xA<3-bit addr>0
-  uint8_t command = 0xA0 | ((address << 1u) & 0x1E);
-  sendByte(command);
+  const uint8_t command = 0xA0 | ((address << 1u) & 0x1E);
+  i2c_write(MS5611_ADDR, &command, 1);
 
   // Send start
   I2C1->CR1 |= I2C_CR1_START;
@@ -193,7 +164,8 @@ static void ms5611_init(void) {
   I2C1->CR1 |= I2C_CR1_PE;
 
   // Send reset sequence - MS5611 page 12
-  sendByte(0x1E);
+  const uint8_t reset_command = UINT8_C(0x1E);
+  i2c_write(MS5611_ADDR, &reset_command, 1);
 
   // Wait for at least a tick to allow the MS5611 to reset.
   uint32_t reset_wait_start = systick_get_ms();
