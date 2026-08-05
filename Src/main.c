@@ -22,7 +22,7 @@
 #include "stm32f407xx.h"
 #include <stdint.h>
 
-const uint8_t MS5611_ADDR = UINT16_C(0xEE);
+const uint8_t MS5611_ADDR = UINT16_C(0x77);
 
 // Taken from AN520: Application note for ms5611, which details
 // how the MS5611 PROM CRC is computed.
@@ -72,37 +72,10 @@ static uint16_t readPROMValue(const uint8_t address) {
   const uint8_t command = 0xA0 | ((address << 1u) & 0x1E);
   i2c_write(MS5611_ADDR, &command, 1);
 
-  // Send start
-  I2C1->CR1 |= I2C_CR1_START;
-  // Poll start
-  while ((I2C1->SR1 & I2C_SR1_SB_Msk) == UINT32_C(0)) {
-    // wait for SB 1
-  }
+  uint8_t data[2];
+  i2c_read(MS5611_ADDR, data, 2);
 
-  // Send addr - 0b1110111+1 (read)
-  I2C1->DR = 0xEF;
-  // Poll addr
-  while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
-    // wait for ADDR 1
-  }
-  // Unset ACK + set POS
-  I2C1->CR1 &= ~I2C_CR1_ACK;
-  I2C1->CR1 |= I2C_CR1_POS;
-  (void)I2C1->SR2;
-
-  // Note that 2-byte reception is unique; see page 845 RM0090 Rev 22
-  while ((I2C1->SR1 & I2C_SR1_BTF_Msk) == UINT32_C(0)) {
-    // wait for BTF
-  }
-  // Step STOP
-  I2C1->CR1 |= I2C_CR1_STOP;
-
-  // Clear POS to avoid contaminating future I2C usage
-  I2C1->CR1 &= ~I2C_CR1_POS;
-
-  // Read data (DR + shift register behind it are ready)
-  uint16_t value = (uint16_t)(I2C1->DR << 8);
-  value |= (uint16_t)I2C1->DR;
+  uint16_t value = ((uint16_t)data[0] << 8) | (uint16_t)data[1];
   return value;
 }
 
