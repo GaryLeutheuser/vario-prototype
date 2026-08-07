@@ -6,6 +6,7 @@ target_sources(${PROJECT_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/i2c.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/drivers/ms5611.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/systick.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/board.c"
 )
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/stm32f407xg_flash.ld" "${CMAKE_CURRENT_BINARY_DIR}" COPYONLY)

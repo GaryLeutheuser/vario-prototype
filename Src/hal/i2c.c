@@ -1,6 +1,23 @@
 #include "hal/i2c.h"
 #include "stm32f407xx.h"
 
+void i2c_init() {
+  // Turn on I2C1 module clock
+  RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+
+  // Configure I2C1
+  // Set FREQ to 16 MHz
+  I2C1->CR2 |= (UINT32_C(16) << I2C_CR2_FREQ_Pos) & I2C_CR2_FREQ_Msk;
+  // Set CCR
+  I2C1->CCR |= (UINT32_C(80) << I2C_CCR_CCR_Pos) & I2C_CCR_CCR_Msk;
+  // Set TRISE
+  I2C1->TRISE = UINT32_C(17); // 1000 ns / 63 ns == 15.87 == 16 + 1 = 17
+  // Set controller mode
+
+  // Enable I2C1
+  I2C1->CR1 |= I2C_CR1_PE;
+}
+
 void i2c_write(uint8_t address, const uint8_t *data, size_t len) {
   // Send start (wait for free bus first)
   while ((I2C1->SR2 & I2C_SR2_BUSY_Msk) != UINT32_C(0)) {
@@ -12,7 +29,7 @@ void i2c_write(uint8_t address, const uint8_t *data, size_t len) {
   }
 
   // Unset LSB of address after shifting left once (write mode) + send
-  I2C1->DR = (address << 1u) & ~UINT8_C(1);
+  I2C1->DR = ((uint32_t)address << 1U) & ~UINT32_C(1);
 
   // Wait for ADDR high
   while ((I2C1->SR1 & I2C_SR1_ADDR_Msk) == UINT32_C(0)) {
@@ -77,7 +94,7 @@ static void i2c_read_1(uint8_t address, uint8_t *data) {
   }
 
   // Read data
-  data[0] = I2C1->DR;
+  data[0] = (uint8_t)(I2C1->DR);
 
   // Ensure STOP takes before moving on
   while ((I2C1->CR1 & I2C_CR1_STOP_Msk) != UINT32_C(0)) {
@@ -119,8 +136,8 @@ static void i2c_read_2(uint8_t address, uint8_t *data) {
   I2C1->CR1 &= ~I2C_CR1_POS;
 
   // Read data (DR + shift register behind it are ready)
-  data[0] = I2C1->DR;
-  data[1] = I2C1->DR;
+  data[0] = (uint8_t)I2C1->DR;
+  data[1] = (uint8_t)I2C1->DR;
 
   // Ensure STOP takes before moving on
   while ((I2C1->CR1 & I2C_CR1_STOP_Msk) != UINT32_C(0)) {
@@ -128,7 +145,7 @@ static void i2c_read_2(uint8_t address, uint8_t *data) {
 }
 
 // Read n > 2 bytes
-static void i2c_read_n(uint8_t address, uint8_t *data, size_t len) {}
+// static void i2c_read_n(uint8_t address, const uint8_t *data, size_t len) {}
 
 void i2c_read(uint8_t address, uint8_t *data, size_t len) {
   // Three cases:
@@ -139,14 +156,14 @@ void i2c_read(uint8_t address, uint8_t *data, size_t len) {
   // are split up in order to make the behavior easy to understand,
   // modify, and validate.
 
-  if (len == 1) {
+  if (len == (size_t)(1)) {
     i2c_read_1(address, data);
-  } else if (len == 2) {
+  } else if (len == (size_t)(2)) {
     i2c_read_2(address, data);
-  } else if (len > 2) {
-    i2c_read_n(address, data, len);
-  } else {
-    // Probably something smarter we could do here later.
-    return;
+  }
+  // else if (len > (size_t)(2)) {
+  //   i2c_read_n(address, data, len);
+  // }
+  else {
   }
 }

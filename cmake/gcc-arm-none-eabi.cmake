@@ -122,7 +122,7 @@ endif()
 
 # Some default GCC settings
 # arm-none-eabi- must be part of path environment
-set(TOOLCHAIN_PREFIX                arm-none-eabi-)
+set(TOOLCHAIN_PREFIX                /home/gary/.local/share/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin/arm-none-eabi-)
 set(FLAGS                           "-fdata-sections -ffunction-sections -Wl,--gc-sections -Wno-comment")
 set(CPP_FLAGS                       "${FLAGS} -fno-rtti -fno-exceptions -fno-threadsafe-statics")
 

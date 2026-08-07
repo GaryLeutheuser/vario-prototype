@@ -13,10 +13,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/target.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/gcc-arm-none-eabi.cmake)
 
 # Project definition
-project(VarioPrototype)
-
-# Enable CMake support for ASM and C/CPP languages
-enable_language(C ASM)
+project(VarioPrototype LANGUAGES C ASM)
 
 set(PROJECT_NAME VarioPrototype)
 
@@ -38,9 +35,17 @@ target_include_directories(${PROJECT_NAME} PRIVATE
   third_party
 )
 
+set(COMMON_WARNINGS
+    -Wall -Wextra -Wpedantic -Werror
+    -Wconversion -Wshadow -Wimplicit-fallthrough
+    -Wundef -Wdouble-promotion -Wconversion
+)
+
 # Compiler options
 target_compile_options(${PROJECT_NAME} PRIVATE
   # User defined compiler options
+  $<$<COMPILE_LANGUAGE:C>:${COMMON_WARNINGS}>
+  $<$<CONFIG:Release>:-Os>
 )
 
 # Add additional defined symbols
@@ -51,6 +56,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 # Linker options
 target_link_options(${PROJECT_NAME} PRIVATE 
   # User defined linker options
+  -nostartfiles
 )
 
 # Add additional linker search directories
