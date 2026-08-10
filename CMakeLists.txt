@@ -27,12 +27,27 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/files.cmake)
 
 # Add sources to executable/library
 target_sources(${PROJECT_NAME} PRIVATE
-  # User defined sources
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/main.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/startup_stm32f407xx.S"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/gpio.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/hal/i2c.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/drivers/ms5611.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/board.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Src/fault_handlers.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/event_groups.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/list.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/queue.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/stream_buffer.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/tasks.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/timers.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/FreeRTOS/portable/GCC/ARM_CM4F/port.c"
 )
 
 # Add include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
   third_party
+  third_party/FreeRTOS/include
+  third_party/FreeRTOS/portable/GCC/ARM_CM4F
 )
 
 set(COMMON_WARNINGS
@@ -67,4 +82,18 @@ target_link_directories(${PROJECT_NAME} PRIVATE
 # Add additional linker libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
   # Add additional linker libraries here
+)
+
+set(FREERTOS_SOURCES
+    third_party/FreeRTOS/tasks.c
+    third_party/FreeRTOS/list.c
+    third_party/FreeRTOS/queue.c
+    third_party/FreeRTOS/timers.c
+    third_party/FreeRTOS/event_groups.c
+    third_party/FreeRTOS/stream_buffer.c
+    third_party/FreeRTOS/portable/GCC/ARM_CM4F/port.c
+)
+
+set_source_files_properties(${FREERTOS_SOURCES} PROPERTIES
+    COMPILE_OPTIONS "-w"
 )

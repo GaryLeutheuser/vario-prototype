@@ -1,6 +1,5 @@
 #include "drivers/ms5611.h"
 #include "hal/i2c.h"
-#include "hal/systick.h"
 #include "stm32f407xx.h"
 #include <stdint.h>
 
@@ -13,10 +12,10 @@ void ms5611_init() {
   i2c_write(MS5611_ADDR, &reset_command, 1);
 
   // Wait for at least a tick to allow the MS5611 to reset.
-  uint32_t reset_wait_start = systick_get_ms();
-  while ((systick_get_ms() - reset_wait_start) < 10u) {
-    // wait
-  }
+  // uint32_t reset_wait_start = systick_get_ms();
+  // while ((systick_get_ms() - reset_wait_start) < 10u) {
+  //   // wait
+  // }
 }
 
 static uint16_t ms5611_read_PROM_value(const uint8_t address) {
