@@ -1,5 +1,119 @@
 #include "hal/i2c.h"
+#include "FreeRTOS.h"
 #include "stm32f407xx.h"
+#include "task.h"
+#include <stdbool.h>
+
+typedef enum {
+  I2C_STATE_IDLE,
+  I2C_STATE_START_SENT,
+  I2C_STATE_ADDR_SENT,
+  I2C_STATE_READING,
+  I2C_STATE_WRITING,
+} i2c_state_t;
+
+typedef struct {
+  i2c_state_t state;
+  uint8_t address;
+  bool reading;
+  uint8_t *buffer;
+  size_t length;
+  size_t index;
+  // i2c_status_t status;
+  TaskHandle_t waiting_task;
+} i2c_xfer_t;
+
+static volatile i2c_xfer_t xfer;
+
+void I2C1_EV_IRQHandler(void) {
+  switch (xfer.state) {
+  case I2C_STATE_START_SENT:
+    if ((I2C1->SR1 & I2C_SR1_SB) == UINT32_C(0)) {
+      // err?
+    }
+
+    if (xfer.reading) {
+      I2C1->DR = ((uint32_t)xfer.address << 1u) | UINT8_C(1);
+    } else {
+      I2C1->DR = ((uint32_t)xfer.address << 1U) & ~UINT32_C(1);
+    }
+
+    xfer.state = I2C_STATE_ADDR_SENT;
+    break;
+
+  case I2C_STATE_ADDR_SENT:
+    if ((I2C1->SR1 & I2C_SR1_ADDR) == UINT32_C(0)) {
+      // err?
+    }
+
+    if (xfer.reading && xfer.length == 1) {
+      // No ACK for 1 byte reads; make sure of that.
+      I2C1->CR1 &= ~I2C_CR1_ACK;
+    } else if (xfer.reading && xfer.length == 2) {
+      // Unset ACK + set POS for 2 byte reception
+      I2C1->CR1 &= ~I2C_CR1_ACK;
+      I2C1->CR1 |= I2C_CR1_POS;
+    }
+
+    // Finish clearing ADDR by reading SR2
+    (void)I2C1->SR2;
+
+    if (xfer.reading && xfer.length == 1) {
+      // Send STOP
+      I2C1->CR1 |= I2C_CR1_STOP;
+    }
+
+    // Wait for data in buffer (next event)
+    if (xfer.reading) {
+      xfer.state = I2C_STATE_READING;
+    }
+    // Send first data byte (TXE already free)
+    else {
+      I2C1->DR = xfer.buffer[xfer.index++];
+      xfer.state = I2C_STATE_WRITING;
+    }
+    break;
+
+  case I2C_STATE_WRITING:
+    if (xfer.index == xfer.length) {
+      // We are done
+      I2C1->CR1 |= I2C_CR1_STOP;
+      xfer.state = I2C_STATE_IDLE;
+    } else {
+      if ((I2C1->SR1 & I2C_SR1_BTF) == UINT32_C(0)) {
+        // err?
+      }
+
+      I2C1->DR = xfer.buffer[xfer.index++];
+      xfer.state = I2C_STATE_WRITING;
+    }
+    break;
+
+  case I2C_STATE_READING:
+    // 2 byte receive
+    if (xfer.length == 2) {
+      // Set STOP
+      I2C1->CR1 |= I2C_CR1_STOP;
+      // Clear POS to avoid contaminating future I2C usage
+      I2C1->CR1 &= ~I2C_CR1_POS;
+      xfer.buffer[0] = (uint8_t)I2C1->DR;
+      xfer.buffer[1] = (uint8_t)I2C1->DR;
+    }
+    // 1 byte receive
+    else {
+      xfer.buffer[0] = (uint8_t)(I2C1->DR);
+      I2C1->CR1 |= I2C_CR1_STOP;
+    }
+
+    xfer.state = I2C_STATE_IDLE;
+    break;
+
+  case I2C_STATE_IDLE:
+    break;
+  }
+}
+
+void I2C1_ER_IRQHandler(void) {}
 
 void i2c_init() {
   // Turn on I2C1 module clock
@@ -12,10 +126,32 @@ void i2c_init() {
   I2C1->CCR |= (UINT32_C(80) << I2C_CCR_CCR_Pos) & I2C_CCR_CCR_Msk;
   // Set TRISE
   I2C1->TRISE = UINT32_C(17); // 1000 ns / 63 ns == 15.87 == 16 + 1 = 17
-  // Set controller mode
+
+  // Interrupts
+  I2C1->CR2 |= I2C_CR2_ITEVTEN | I2C_CR2_ITERREN;
 
   // Enable I2C1
   I2C1->CR1 |= I2C_CR1_PE;
+}
+
+void i2c_write_isr(uint8_t address, uint8_t *data, size_t len) {
+  xfer.address = address;
+  xfer.buffer = data;
+  xfer.length = len;
+  xfer.reading = false;
+  xfer.state = I2C_STATE_START_SENT;
+  xfer.index = 0;
+  I2C1->CR1 |= I2C_CR1_START;
+}
+
+void i2c_read_isr(uint8_t address, uint8_t *data, size_t len) {
+  xfer.address = address;
+  xfer.buffer = data;
+  xfer.length = len;
+  xfer.reading = true;
+  xfer.state = I2C_STATE_START_SENT;
+  xfer.index = 0;
+  I2C1->CR1 |= I2C_CR1_START;
 }
 
 void i2c_write(uint8_t address, const uint8_t *data, size_t len) {

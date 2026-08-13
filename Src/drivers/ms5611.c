@@ -11,8 +11,9 @@ static const uint8_t MS5611_ADDR = UINT8_C(0x77);
 
 void vMs5611_Init(void *pvParameters) {
   // Send reset sequence - MS5611 page 12
-  const uint8_t reset_command = UINT8_C(0x1E);
-  i2c_write(MS5611_ADDR, &reset_command, 1);
+  uint8_t reset_command = UINT8_C(0x1E);
+  // i2c_write(MS5611_ADDR, &reset_command, 1);
+  i2c_write_isr(MS5611_ADDR, &reset_command, 1);
 
   // Wait for at least 2.8 ms to reset (MS5611 datasheet page 10)
   vTaskDelay(pdMS_TO_TICKS(3));

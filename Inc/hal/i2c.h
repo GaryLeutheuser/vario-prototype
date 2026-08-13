@@ -9,6 +9,8 @@ void i2c_init(void);
 
 // Bytes written from data pointer
 void i2c_write(uint8_t address, const uint8_t *data, size_t len);
+void i2c_write_isr(uint8_t address, uint8_t *data, size_t len);
 
 // Bytes read to data pointer
 void i2c_read(uint8_t address, uint8_t *data, size_t len);
+void i2c_read_isr(uint8_t address, uint8_t *data, size_t len);

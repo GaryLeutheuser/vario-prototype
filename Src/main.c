@@ -32,16 +32,6 @@ void vBlinkyTask(void *pvParameters) {
 }
 
 int main(void) {
-  // I2C Interrupt Quest
-  // 1. Set I2C1_CR2->ITEVTEN
-  // 2. Set I2C1_CR2->ITERREN
-  I2C1->CR2 |= I2C_CR2_ITEVTEN | I2C_CR2_ITERREN;
-  // 3. Enable I2C1_EV in the NVIC (position 31)
-  NVIC_EnableIRQ(I2C1_EV_IRQn);
-  NVIC_SetPriority(I2C1_EV_IRQn, 5);
-  // 4. Enable I2C1_ER in the NVIC (position 32)
-  NVIC_EnableIRQ(I2C1_ER_IRQn);
-  NVIC_SetPriority(I2C1_ER_IRQn, 5);
 
   // Next step: trigger one of these and make sure we make it into a (no-op) ISR
   // function to establish baseline wiring.
@@ -50,6 +40,13 @@ int main(void) {
 
   board_init();
   i2c_init();
+
+  // 3. Enable I2C1_EV in the NVIC (position 31)
+  NVIC_EnableIRQ(I2C1_EV_IRQn);
+  NVIC_SetPriority(I2C1_EV_IRQn, 5);
+  // 4. Enable I2C1_ER in the NVIC (position 32)
+  NVIC_EnableIRQ(I2C1_ER_IRQn);
+  NVIC_SetPriority(I2C1_ER_IRQn, 5);
 
   xTaskCreateStatic(vBlinkyTask, "Blinky", BLINKY_STACK_WORDS, NULL, 1,
                     blinky_stack, &blinky_tcb);
